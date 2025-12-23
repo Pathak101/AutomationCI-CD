@@ -3,6 +3,7 @@ package Academy;
 import static org.junit.Assert.assertEquals;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.junit.Assert;
 import org.junit.Test;
 import org.openqa.selenium.By;
