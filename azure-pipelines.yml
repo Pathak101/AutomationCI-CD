@@ -1,22 +1,83 @@
-# Maven
-# Build your Java project and run tests with Apache Maven.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+# Maven CI/CD Pipeline – Java WAR deployment to Azure App Service
 
 trigger:
-- master
+- main
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.11'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
+stages:
+# =====================
+# CI – BUILD STAGE
+# =====================
+- stage: CI
+  displayName: CI - Build
+  jobs:
+  - job: Build
+    displayName: Maven Build
+    steps:
+
+    # ---------------------
+    # Use Java 11
+    # ---------------------
+    - task: UseJava@1
+      displayName: Use Java 11
+      inputs:
+        versionSpec: '11'
+        architecture: 'x64'
+
+    # ---------------------
+    # Maven Build (no deprecated task)
+    # ---------------------
+    - script: |
+        mvn -version
+        mvn clean package
+      displayName: Maven Build & Package
+
+    # ---------------------
+    # Copy WAR
+    # ---------------------
+    - task: CopyFiles@2
+      displayName: Copy WAR
+      inputs:
+        Contents: '**/*.war'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    # ---------------------
+    # Publish Artifact
+    # ---------------------
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Artifact
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'warfile'
+        publishLocation: 'Container'
+
+
+# =====================
+# CD – DEPLOY STAGE
+# =====================
+- stage: CD
+  displayName: CD - Deploy to Azure
+  dependsOn: CI
+  condition: succeeded()
+
+  jobs:
+  - deployment: DeployToAzure
+    displayName: Deploy WAR to Azure App Service
+    environment: dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - download: current
+            artifact: warfile
+
+          - task: AzureWebApp@1
+            displayName: Deploy WAR to Azure App Service
+            inputs:
+              azureSubscription: 'Azure subscription 1(3c7777d7-b743-402f-ad14-cf54579438cc)'
+              appType: 'webAppLinux'
+              appName: 'SiddharthPathak'
+              package: '$(Pipeline.Workspace)/warfile/**/*.war'
