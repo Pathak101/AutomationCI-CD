@@ -1,7 +1,7 @@
 resources:
   pipelines:
-  - pipeline: ciPipeline
-    source: Pathak101.AzureDevops_Practise
+  - pipeline: uiPipeline
+    source: Pathak101.AzureDevops_Practise   # UI pipeline name
     trigger:
       branches:
         include:
@@ -10,64 +10,27 @@ resources:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  APP_URL: https://siddharthpathak.azurewebsites.net
+
 stages:
 # =====================
-# CI – BUILD (Skip Tests)
+# SELENIUM VALIDATION
 # =====================
-- stage: CI
-  displayName: CI - Build (Skip Tests)
+- stage: Selenium
+  displayName: UI Selenium Validation
   jobs:
-  - job: Build
+  - job: RunSeleniumTests
+    displayName: Run Selenium Tests
     steps:
 
     - task: Maven@3
-      displayName: Maven Package (skip tests)
+      displayName: Run Selenium Tests
       inputs:
         mavenPomFile: 'pom.xml'
         mavenOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '1.11'
-        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
         goals: 'clean test'
-
-    - task: CopyFiles@2
-      displayName: Copy WAR
-      inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)'
-        Contents: '**/target/*.war'
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
-
-    - task: PublishBuildArtifacts@1
-      displayName: Publish WAR Artifact
-      inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'warfile'
-        publishLocation: 'Container'
-
-
-# =====================
-# CD – DEPLOY
-# =====================
-- stage: CD
-  displayName: CD - Deploy to Azure
-  dependsOn: CI
-  condition: succeeded()
-
-  jobs:
-  - deployment: DeployToAzure
-    environment: dev
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
-          - download: current
-            artifact: warfile
-
-          - task: AzureWebApp@1
-            displayName: Deploy WAR to Azure
-            inputs:
-              azureSubscription: 'Azure subscription 1(3c7777d7-b743-402f-ad14-cf54579438cc)'
-              appType: 'webAppLinux'
-              appName: 'siddharthpathak'
-              package: '$(Pipeline.Workspace)/warfile/**/*.war'
