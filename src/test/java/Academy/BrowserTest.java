@@ -16,7 +16,7 @@ public class BrowserTest {
 
 	
 	@Test
-	public void getData()
+	public void getData() throws InterruptedException
 	{
 		
         ChromeOptions options = new ChromeOptions();
