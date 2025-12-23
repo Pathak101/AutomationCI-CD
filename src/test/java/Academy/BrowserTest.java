@@ -27,12 +27,10 @@ public class BrowserTest {
 
         WebDriverManager.chromedriver().setup();
         WebDriver driver = new ChromeDriver(options);
-
+		
+		System.out.println("Hello guys");
         driver.get("https://siddharthpathak.azurewebsites.net/webapp/");
-
         Thread.sleep(5000);
-		// System.setProperty("webdriver.chrome.driver", "chromedriver.exe");
-		// WebDriver driver =new ChromeDriver();
 		String text =driver.findElement(By.xpath("//h1[normalize-space()='RahulShettyAcademy.com Learning']")).getText();
 		System.out.println(text);
 		// Assert.assertTrue(text.equalsIgnoreCase("RahulShettyAcademy.com Learning"));
