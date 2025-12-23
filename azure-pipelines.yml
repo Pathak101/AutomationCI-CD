@@ -1,40 +1,35 @@
-# Maven CI/CD Pipeline – Build & Deploy WAR to Azure App Service
-
-trigger:
-- main
+resources:
+  pipelines:
+  - pipeline: ciPipeline
+    source: Pathak101.AzureDevops_Practise
+    trigger:
+      branches:
+        include:
+        - main
 
 pool:
   vmImage: ubuntu-latest
 
 stages:
 # =====================
-# CI – BUILD STAGE
+# CI – BUILD (Skip Tests)
 # =====================
 - stage: CI
-  displayName: CI - Build
+  displayName: CI - Build (Skip Tests)
   jobs:
   - job: Build
-    displayName: Maven Build
     steps:
 
-    # ---------------------
-    # Maven Build (skip tests)
-    # ---------------------
     - task: Maven@3
-      displayName: Maven Package
+      displayName: Maven Package (skip tests)
       inputs:
         mavenPomFile: 'pom.xml'
         mavenOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '1.11'
         jdkArchitectureOption: 'x64'
-        publishJUnitResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
         goals: 'clean package -DskipTests'
 
-    # ---------------------
-    # Copy WAR
-    # ---------------------
     - task: CopyFiles@2
       displayName: Copy WAR
       inputs:
@@ -42,9 +37,6 @@ stages:
         Contents: '**/target/*.war'
         TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-    # ---------------------
-    # Publish Artifact
-    # ---------------------
     - task: PublishBuildArtifacts@1
       displayName: Publish WAR Artifact
       inputs:
@@ -54,7 +46,7 @@ stages:
 
 
 # =====================
-# CD – DEPLOY STAGE
+# CD – DEPLOY
 # =====================
 - stage: CD
   displayName: CD - Deploy to Azure
@@ -63,24 +55,17 @@ stages:
 
   jobs:
   - deployment: DeployToAzure
-    displayName: Deploy WAR to Azure App Service
     environment: dev
     strategy:
       runOnce:
         deploy:
           steps:
 
-          # ---------------------
-          # Download Artifact
-          # ---------------------
           - download: current
             artifact: warfile
 
-          # ---------------------
-          # Deploy to Azure App Service
-          # ---------------------
           - task: AzureWebApp@1
-            displayName: Deploy WAR to Azure App Service
+            displayName: Deploy WAR to Azure
             inputs:
               azureSubscription: 'Azure subscription 1(3c7777d7-b743-402f-ad14-cf54579438cc)'
               appType: 'webAppLinux'
