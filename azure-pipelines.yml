@@ -1,5 +1,4 @@
-# Maven
-# Build your Java project and run tests with Apache Maven.
+# Maven CI/CD Pipeline – Build & Deploy WAR to Azure App Service
 
 trigger:
 - main
@@ -7,38 +6,83 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-steps:
+stages:
 # =====================
-# Maven Build
+# CI – BUILD STAGE
 # =====================
-- task: Maven@3
-  displayName: Maven Package
-  inputs:
-    mavenPomFile: 'pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.11'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'clean package -DskipTests'
+- stage: CI
+  displayName: CI - Build
+  jobs:
+  - job: Build
+    displayName: Maven Build
+    steps:
+
+    # ---------------------
+    # Maven Build (skip tests)
+    # ---------------------
+    - task: Maven@3
+      displayName: Maven Package
+      inputs:
+        mavenPomFile: 'pom.xml'
+        mavenOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.11'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        goals: 'clean package -DskipTests'
+
+    # ---------------------
+    # Copy WAR
+    # ---------------------
+    - task: CopyFiles@2
+      displayName: Copy WAR
+      inputs:
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
+        Contents: '**/target/*.war'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    # ---------------------
+    # Publish Artifact
+    # ---------------------
+    - task: PublishBuildArtifacts@1
+      displayName: Publish WAR Artifact
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'warfile'
+        publishLocation: 'Container'
+
 
 # =====================
-# Copy WAR
+# CD – DEPLOY STAGE
 # =====================
-- task: CopyFiles@2
-  displayName: Copy WAR
-  inputs:
-    SourceFolder: '$(System.DefaultWorkingDirectory)'
-    Contents: '**/target/*.war'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- stage: CD
+  displayName: CD - Deploy to Azure
+  dependsOn: CI
+  condition: succeeded()
 
-# =====================
-# Publish Artifact
-# =====================
-- task: PublishBuildArtifacts@1
-  displayName: Publish WAR Artifact
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'warfile'
-    publishLocation: 'Container'
+  jobs:
+  - deployment: DeployToAzure
+    displayName: Deploy WAR to Azure App Service
+    environment: dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          # ---------------------
+          # Download Artifact
+          # ---------------------
+          - download: current
+            artifact: warfile
+
+          # ---------------------
+          # Deploy to Azure App Service
+          # ---------------------
+          - task: AzureWebApp@1
+            displayName: Deploy WAR to Azure App Service
+            inputs:
+              azureSubscription: 'Azure subscription 1(3c7777d7-b743-402f-ad14-cf54579438cc)'
+              appType: 'webAppLinux'
+              appName: 'siddharthpathak'
+              package: '$(Pipeline.Workspace)/warfile/**/*.war'
