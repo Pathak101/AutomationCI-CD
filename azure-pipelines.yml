@@ -1,7 +1,11 @@
+# =========================================================
+# Selenium Validation + PROD Deployment Pipeline
+# =========================================================
+
 resources:
   pipelines:
   - pipeline: uiPipeline
-    source: Pathak101.AzureDevops_Practise   # UI pipeline name
+    source: Pathak101.AzureDevops_Practise     # UI pipeline name
     trigger:
       branches:
         include:
@@ -11,14 +15,15 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  APP_URL: https://siddharthpathak.azurewebsites.net
+  DEV_APP_URL: https://siddharthpathak.azurewebsites.net
+  PROD_APP_NAME: prodSiddharthPathak
 
 stages:
-# =====================
-# SELENIUM VALIDATION
-# =====================
+# =========================================================
+# STAGE 1 – SELENIUM VALIDATION (DEV)
+# =========================================================
 - stage: Selenium
-  displayName: UI Selenium Validation
+  displayName: Selenium Validation on DEV
   jobs:
   - job: RunSeleniumTests
     displayName: Run Selenium Tests
@@ -34,3 +39,39 @@ stages:
         publishJUnitResults: true
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
         goals: 'clean test'
+        options: '-DappUrl=$(DEV_APP_URL)'
+
+
+# =========================================================
+# STAGE 2 – PROD DEPLOYMENT (ONLY IF SELENIUM PASSES)
+# =========================================================
+- stage: PROD
+  displayName: Deploy to PROD
+  dependsOn: Selenium
+  condition: succeeded()     # 🔒 Selenium is the quality gate
+
+  jobs:
+  - deployment: DeployToProd
+    displayName: Deploy WAR to PROD
+    environment: prod        # enables approvals if configured
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          # -------------------------------------------------
+          # Download WAR artifact from UI pipeline
+          # -------------------------------------------------
+          - download: uiPipeline
+            artifact: ui-war
+
+          # -------------------------------------------------
+          # Deploy WAR to PROD Azure App Service
+          # -------------------------------------------------
+          - task: AzureWebApp@1
+            displayName: Deploy WAR to PROD
+            inputs:
+              azureSubscription: 'Azure subscription 1(3c7777d7-b743-402f-ad14-cf54579438cc)'
+              appType: 'webAppLinux'
+              appName: '$(PROD_APP_NAME)'
+              package: '$(Pipeline.Workspace)/uiPipeline/ui-war/**/*.war'
