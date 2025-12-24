@@ -63,7 +63,7 @@ stages:
           # Download WAR artifact from UI pipeline
           # -------------------------------------------------
           - download: uiPipeline
-            artifact: ui-war
+            artifact: warfile
 
           # -------------------------------------------------
           # Deploy WAR to PROD Azure App Service
@@ -74,4 +74,4 @@ stages:
               azureSubscription: 'Azure subscription 1(3c7777d7-b743-402f-ad14-cf54579438cc)'
               appType: 'webAppLinux'
               appName: '$(PROD_APP_NAME)'
-              package: '$(Pipeline.Workspace)/uiPipeline/ui-war/**/*.war'
+              package: '$(Pipeline.Workspace)/uiPipeline/warfile/**/*.war'
